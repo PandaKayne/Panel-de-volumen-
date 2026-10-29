@@ -1,4 +1,4 @@
-# This is a basic workflow to help you get started with Acname: Build APK
+name: Build APK
 on:
   push:
     branches: [main]
@@ -15,8 +15,21 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: 8.7
-      - run: gradle assembleRelease --no-daemon
+      - name: Preparar proyecto
+        run: |
+          if [ -f VolumenTecno.zip ]; then unzip -q VolumenTecno.zip -d _proyecto; fi
+      - name: Compilar
+        run: |
+          S=$(find . -name settings.gradle.kts -not -path './.git/*' | head -1)
+          if [ -z "$S" ]; then
+            echo "No se encontro settings.gradle.kts. Archivos del repo:"
+            ls -R | head -60
+            exit 1
+          fi
+          echo "Proyecto en: $S"
+          cd "$(dirname "$S")"
+          gradle assembleRelease --no-daemon
       - uses: actions/upload-artifact@v4
         with:
           name: VolumenTecno
-          path: app/build/outputs/apk/release/*.apk
+          path: "**/build/outputs/apk/release/*.apk"
