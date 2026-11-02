@@ -1,19 +1,31 @@
-name: Unzip
-on: workflow_dispatch
-permissions:
-  contents: write
+name: Build APK
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
 jobs:
-  unzip:
+  build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: |
-          unzip -q VolumenTecno.zip
-          rm -rf VolumenTecno/.github
-          cp -a VolumenTecno/. .
-          rm -rf VolumenTecno VolumenTecno.zip
-          git config user.name "github-actions"
-          git config user.email "actions@github.com"
-          git add -A
-          git commit -m "Descomprimir proyecto"
-          git push
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: 8.7
+      - name: Compilar
+        id: b
+        run: |
+          if [ -f VolumenTecno.zip ]; then
+            rm -rf _proyecto
+            unzip -q VolumenTecno.zip -d _proyecto
+            cd _proyecto/VolumenTecno
+          fi
+          echo "ver=$(grep -o 'versionName = "[^"]*"' app/build.gradle.kts | cut -d'"' -f2)" >> $GITHUB_OUTPUT
+          gradle assembleRelease --no-daemon
+      - uses: actions/upload-artifact@v4
+        with:
+          name: VolumenVirtual-v${{ steps.b.outputs.ver }}
+          path: "**/build/outputs/apk/release/*.apk"
