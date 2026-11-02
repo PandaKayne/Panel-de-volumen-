@@ -18,12 +18,23 @@ jobs:
       - name: Compilar
         id: b
         run: |
-          if [ -f VolumenTecno.zip ]; then
-            rm -rf _proyecto
-            unzip -q VolumenTecno.zip -d _proyecto
-            cd _proyecto/VolumenTecno
-          fi
-          echo "ver=$(grep -o 'versionName = "[^"]*"' app/build.gradle.kts | cut -d'"' -f2)" >> $GITHUB_OUTPUT
+          rm -rf _p; mkdir _p; n=0
+          for z in *.zip; do
+            [ -f "$z" ] || continue
+            n=$((n+1)); unzip -q "$z" -d "_p/$n" || true
+          done
+          best=""; bestv=0
+          while IFS= read -r f; do
+            v=$(grep -o 'versionCode = [0-9]*' "$f" | grep -o '[0-9]*' | head -1)
+            v=${v:-0}
+            if [ "$v" -gt "$bestv" ]; then bestv=$v; best=$(dirname "$(dirname "$f")"); fi
+          done < <(find _p -path '*/app/build.gradle.kts')
+          if [ -z "$best" ] && [ -f settings.gradle.kts ]; then best=.; fi
+          if [ -z "$best" ]; then echo "No encontre el proyecto"; ls -R | head -50; exit 1; fi
+          echo "Usando: $best (versionCode $bestv)"
+          ver=$(grep -o 'versionName = "[^"]*"' "$best/app/build.gradle.kts" | cut -d'"' -f2)
+          echo "ver=$ver" >> "$GITHUB_OUTPUT"
+          cd "$best"
           gradle assembleRelease --no-daemon
       - uses: actions/upload-artifact@v4
         with:
